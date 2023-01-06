@@ -1,5 +1,8 @@
 # FOH
-This repository contains the matlab code for the online hashing approach proposed in our paper: "Fast Online Hashing with Multi-Label Projection". 
+This repository contains the matlab code for the paper: "Fast Online Hashing with Multi-Label Projection" AAAI 2023.
+
+Authors: Wenzhe Jia, Yuan Cao*, Junwei Liu and Jie Gui.
+
 ## Overview
 We provide an example to run our method on the CIFAR10 dataset.
 ## Usage

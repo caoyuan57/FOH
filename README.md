@@ -9,4 +9,4 @@ We provide an example to run our method on the CIFAR10 dataset.
 - In the main folder, run startup.m.  
 - For single lable online hashing experiments:run FOH.m.  
 - For multi lable online hashing experiments:run FOHmultilabel.m.
-## If you have any question, please send email to Yuan Cao (email adrees: caoyuan57@163.com).
+If you have any question, please send email to Yuan Cao (email adrees: caoyuan57@163.com).

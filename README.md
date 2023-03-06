@@ -6,7 +6,7 @@ Authors: Wenzhe Jia, Yuan Cao*, Junwei Liu and Jie Gui.
 ## Overview
 We provide an example to run our method on the CIFAR10 dataset.
 
-![图片alt]("/framework.png" "图片title")
+![图片alt](https://github.com/caoyuan57/FOH/blob/main/framework.png)
 ## Usage
 - In the main folder, run startup.m.  
 - For single lable online hashing experiments:run FOH.m.  

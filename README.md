@@ -8,7 +8,7 @@ We provide an example to run our method on the CIFAR10 dataset.
 
 download the [CIFAR10] dataset from pan.baidu.com. The link is listed as follows:
 
-link: [https://pan.baidu.com/s/1FplKzZnSpjF7ukq0UgDDyw?pwd=mciv]
+link: https://pan.baidu.com/s/1FplKzZnSpjF7ukq0UgDDyw?pwd=mciv
 
 password: mciv
 

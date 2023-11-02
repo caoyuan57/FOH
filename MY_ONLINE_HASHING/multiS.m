@@ -6,9 +6,9 @@ for i = 1 : 20015
     c =  LAll(i,:);
     for j = 1 : 20015
         d =  LAll(j,:);
-        e = length(find(intersect(c,d)));
-        m = length(find(d));
-        n = length(find(c));
+        e = length(intersect(find(c==1),find(d==1)));
+        m = length(find(d==1));
+        n = length(find(c==1));
         S(i,j) = (e/m + e/n)/2;
     end
 end

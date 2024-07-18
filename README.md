@@ -1,8 +1,6 @@
 # FOH
 This repository contains the matlab code for the paper: "Fast Online Hashing with Multi-Label Projection" AAAI 2023.
 
-Authors: Wenzhe Jia, Yuan Cao*, Junwei Liu and Jie Gui.
-
 ## Overview
 We provide an example to run our method on the CIFAR10/MIRFLICKR dataset.
 

@@ -1,79 +1,74 @@
 function DS = mnist_zs(opts, normalizeX)
-% Load and prepare CNN features. The data paths must be changed. For all datasets,
-% X represents the data matrix. Rows correspond to data instances and columns
-% correspond to variables/features.
-% Y represents the label matrix where each row corresponds to a label vector of 
-% an item, i.e., for multiclass datasets this vector has a single dimension and 
-% for multilabel datasets the number of columns of Y equal the number of labels
-% in the dataset. Y can be empty for unsupervised datasets.
-% 
+% mnist_zs 用于加载和准备 MNIST 数据集的 CNN 特征，进行零样本学习任务
+% 输入：
+%   opts   - (struct) 参数结构体，包含数据路径等设置。
+%   normalizeX - (int) 选择是否归一化数据。{0, 1}。如果 normalizeX = 1，数据将进行均值中心化和单位长度归一化。
 %
-% INPUTS
-%	opts   - (struct)  Parameter structure.
-% 		
-% OUTPUTS: struct DS
-% 	Xtrain - (nxd) 	   Training data matrix, each row corresponds to a data
-%			   instance.
-%	Ytrain - (nxl)     Training data label matrix. l=1 for multiclass datasets.
-%			   For unsupervised dataset Ytrain=[], see LabelMe in 
-%			   load_gist.m
-%	Xtest  - (nxd)     Test data matrix, each row corresponds to a data instance.
-%	Ytest  - (nxl)	   Test data label matrix, l=1 for multiclass datasets. 
-%			   For unsupervised dataset Ytrain=[], see LabelMe in 
-%			   load_gist.m
-% 
-if nargin < 2, normalizeX = 1; end
-if ~normalizeX, logInfo('will NOT pre-normalize data'); end
-    
-tic;
-load(fullfile(opts.dirs.data, 'mnist.mat'), ...
-    'trainMNIST', 'testMNIST', 'trainLabel', 'testLabel');
-X = [trainMNIST; testMNIST];
-Y = [trainLabel; testLabel] + 1;
-ind = randperm(length(Y));
-X = X(ind, :);
-Y = Y(ind);
+% 输出：
+%   DS - 包含训练集、测试集和检索集的结构体，含有以下字段：
+%       Xtrain - (nxd) 训练数据矩阵，每行对应一个数据实例。
+%       Ytrain - (nxl) 训练数据标签矩阵，l=1 对于单类数据集。
+%       Xtest  - (nxd) 测试数据矩阵。
+%       Ytest  - (nxl) 测试数据标签矩阵。
+%       Xretrieval - (nxd) 检索数据矩阵。
+%       Yretrieval - (nxl) 检索数据标签矩阵。
+%       thr_dist - 距离阈值，初始设置为 -Inf。
 
-% normalize features
+if nargin < 2, normalizeX = 1; end  % 如果没有指定归一化参数，默认归一化
+if ~normalizeX, logInfo('will NOT pre-normalize data'); end  % 如果不进行归一化，输出提示信息
+
+tic;  % 开始计时
+
+% 加载 MNIST 数据集（训练集、测试集特征和标签）
+load(fullfile(opts.dirs.data, 'mnist.mat'), 'trainMNIST', 'testMNIST', 'trainLabel', 'testLabel');
+
+X = [trainMNIST; testMNIST];  % 合并训练集和测试集特征
+Y = [trainLabel; testLabel] + 1;  % 合并训练集和测试集标签，标签 +1，确保标签从 1 开始
+ind = randperm(length(Y));  % 随机打乱样本的顺序
+X = X(ind, :);  % 按照打乱的顺序重新排列特征
+Y = Y(ind);  % 按照打乱的顺序重新排列标签
+
+% 特征归一化
 if normalizeX
-    X = bsxfun(@minus, X, mean(X,1));  % first center at 0
-    X = normalize(double(X));  % then scale to unit length
+    X = bsxfun(@minus, X, mean(X, 1));  % 对特征进行零均值处理（每列减去均值）
+    X = normalize(double(X));  % 然后将数据缩放到单位长度
 end
 
-% ����seen class��unseen class
-num_class = 10;
-ratio = 0.25;
-classes = randperm(num_class);
-unseen_num = round(ratio * num_class);
-unseen_class = classes(1:unseen_num)
-seen_class = classes(unseen_num+1:end)
+% 生成 seen 类别和 unseen 类别
+num_class = 10;  % MNIST 数据集有 10 类
+ratio = 0.25;  % 设置 25% 的类别为 unseen 类别
+classes = randperm(num_class);  % 随机排列类别
+unseen_num = round(ratio * num_class);  % 计算 unseen 类别的数量
+unseen_class = classes(1:unseen_num);  % 获取 unseen 类别
+seen_class = classes(unseen_num + 1:end);  % 获取 seen 类别
 
-% ���ɰ���75%��seen class����
-ind_seen = logical(sum(Y==seen_class, 2));
-X_seen = X(ind_seen, :);
-Y_seen = Y(ind_seen);
+% 生成包含 75% seen 类别数据
+ind_seen = logical(sum(Y == seen_class, 2));  % 找到属于 seen 类别的样本
+X_seen = X(ind_seen, :);  % 获取对应的特征
+Y_seen = Y(ind_seen);  % 获取对应的标签
 
-% ���ɰ���25%��unseen class����
-ind_unseen = logical(sum(Y==unseen_class, 2));
-X_unseen = X(ind_unseen, :);
-Y_unseen = Y(ind_unseen);
+% 生成包含 25% unseen 类别数据
+ind_unseen = logical(sum(Y == unseen_class, 2));  % 找到属于 unseen 类别的样本
+X_unseen = X(ind_unseen, :);  % 获取对应的特征
+Y_unseen = Y(ind_unseen);  % 获取对应的标签
 
-clear ind train_ind test_ind;
+clear ind_seen ind_unseen;  % 清理中间变量
 
-% T = round(ratio * length(Y_unseen) / length(unseen_class));
+% T 设置为 100，表示从每个 unseen 类别中选择 100 个样本进行测试
 T = 100;
 
-% split
-[iretrieval, itest] = Datasets.split_dataset(X_unseen, Y_unseen, T);
+% 划分 unseen 类别的训练集和测试集
+[iretrieval, itest] = Datasets.split_dataset(X_unseen, Y_unseen, T);  % 使用 split_dataset 函数划分数据集
 
+% 构建 DS 结构体，包含训练集、测试集和检索集
 DS = [];
-DS.Xtrain = X_seen;
-DS.Ytrain = Y_seen;
-DS.Xtest  = X_unseen(itest, :);
-DS.Ytest  = Y_unseen(itest);
-DS.Xretrieval  = X_unseen(iretrieval, :);
-DS.Yretrieval  = Y_unseen(iretrieval);
-DS.thr_dist = -Inf;
+DS.Xtrain = X_seen;  % 训练集特征
+DS.Ytrain = Y_seen;  % 训练集标签
+DS.Xtest  = X_unseen(itest, :);  % 测试集特征
+DS.Ytest  = Y_unseen(itest);  % 测试集标签
+DS.Xretrieval  = X_unseen(iretrieval, :);  % 检索集特征
+DS.Yretrieval  = Y_unseen(iretrieval);  % 检索集标签
+DS.thr_dist = -Inf;  % 初始化距离阈值
 
-logInfo('[MNIST_Zero_Shot] loaded in %.2f secs', toc);
+logInfo('[MNIST_Zero_Shot] loaded in %.2f secs', toc);  % 输出加载时间
 end

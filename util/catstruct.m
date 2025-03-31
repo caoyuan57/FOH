@@ -68,8 +68,11 @@ function A = catstruct(varargin)
 narginchk(1,Inf) ;
 N = nargin ;
 
+%% 排序标志检测模块
+% 判断最后一个参数是否是'sorted'标志
 if ~isstruct(varargin{end}),
     if isequal(varargin{end},'sorted'),
+        % 当存在'sorted'标志时调整参数计数
         narginchk(2,Inf) ;
         sorted = 1 ;
         N = N-1 ;
@@ -80,73 +83,86 @@ else
     sorted = 0 ;
 end
 
-sz0 = [] ; % used to check that all inputs have the same size
+%% 结构体预处理模块
+sz0 = [] ; % 初始化尺寸记录变量
 
-% used to check for a few trivial cases
-NonEmptyInputs = false(N,1) ; 
+% 非空输入标记初始化
+NonEmptyInputs = false(N,1) ;
 NonEmptyInputsN = 0 ;
 
-% used to collect the fieldnames and the inputs
-FN = cell(N,1) ;
-VAL = cell(N,1) ;
+% 预分配存储空间
+FN = cell(N,1) ;  % 存储各结构体字段名
+VAL = cell(N,1) ; % 存储各结构体字段值
 
-% parse the inputs
+%% 结构体解析循环
 for ii=1:N,
     X = varargin{ii} ;
+    % 类型验证：确保输入为结构体
     if ~isstruct(X),
         error('catstruct:InvalidArgument',['Argument #' num2str(ii) ' is not a structure.']) ;
     end
-    
+
+    % 非空结构体处理
     if ~isempty(X),
-        % empty structs are ignored
+        %% 尺寸一致性检查
         if ii > 1 && ~isempty(sz0)
             if ~isequal(size(X), sz0)
                 error('catstruct:UnequalSizes','All structures should have the same size.') ;
             end
         else
-            sz0 = size(X) ;
+            sz0 = size(X) ; % 记录首个非空结构体尺寸
         end
-        NonEmptyInputsN = NonEmptyInputsN + 1 ;
-        NonEmptyInputs(ii) = true ;
-        FN{ii} = fieldnames(X) ;
-        VAL{ii} = struct2cell(X) ;
+
+        %% 信息提取
+        NonEmptyInputsN = NonEmptyInputsN + 1 ; % 非空计数器
+        NonEmptyInputs(ii) = true ;             % 标记非空
+        FN{ii} = fieldnames(X) ;    % 提取字段名
+        VAL{ii} = struct2cell(X) ;  % 转换为单元格数组
     end
 end
 
+%% 特殊情况处理分支
 if NonEmptyInputsN == 0
-    % all structures were empty
+    % 全空输入处理：返回空结构体
     A = struct([]) ;
 elseif NonEmptyInputsN == 1,
-    % there was only one non-empty structure
+    % 单结构体处理：直接返回原结构体
     A = varargin{NonEmptyInputs} ;
+    % 按需排序字段
     if sorted,
         A = orderfields(A) ;
     end
+
+%% 常规合并流程
 else
-    % there is actually something to concatenate
-    FN = cat(1,FN{:}) ;    
-    VAL = cat(1,VAL{:}) ;    
+    % 垂直拼接所有字段信息
+    FN = cat(1,FN{:}) ;
+    VAL = cat(1,VAL{:}) ;
+
+    % 维度压缩处理（兼容多维数组）
     FN = squeeze(FN) ;
     VAL = squeeze(VAL) ;
-    
-    
+
+    %% 重复字段处理
+    % 获取唯一字段名（保留最后出现的重复项）
     [UFN,ind] = unique(FN, 'last') ;
-    % If this line errors, due to your matlab version not having UNIQUE
-    % accept the 'last' input, use the following line instead
-    % [UFN,ind] = unique(FN) ; % earlier ML versions, like 6.5
-    
+    % 注意：旧版Matlab可能需要改用unique(FN)
+
+    %% 重复字段警告
     if numel(UFN) ~= numel(FN),
         warning('catstruct:DuplicatesFound','Fieldnames are not unique between structures.') ;
-        sorted = 1 ;
+        sorted = 1 ; % 强制启用排序
     end
-    
+
+    %% 字段排序处理
     if sorted,
-        VAL = VAL(ind,:) ;
-        FN = FN(ind,:) ;
+        VAL = VAL(ind,:) ; % 按索引重组数值
+        FN = FN(ind,:) ;   % 按字母顺序排列
     end
-    
-    A = cell2struct(VAL, FN);
-    A = reshape(A, sz0) ; % reshape into original format
+
+    %% 最终结构体生成
+    A = cell2struct(VAL, FN); % 转换为结构体
+    A = reshape(A, sz0) ;    % 恢复原始数组维度
 end
 
 

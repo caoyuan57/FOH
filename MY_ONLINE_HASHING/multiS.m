@@ -1,16 +1,29 @@
-%The similarity construction algorithm proposed in this paper%
-%For multi lable dataset%
-S = zeros(20015,20015);
+% 本文提出的相似度构建算法
+% 用于多标签数据集
+
+% 初始化一个大小为 20015 x 20015 的零矩阵，用于存储样本之间的相似度
+S = zeros(20015, 20015);
+
+% 加载标签矩阵 LAll，假设它是一个大小为 20015 x M 的矩阵，其中 M 是标签的数量
 load('..\data\MIRFLICKR.mat','LAll');
+
+% 遍历所有样本对，计算每一对样本之间的相似度
 for i = 1 : 20015
-    c =  LAll(i,:);
+    c = LAll(i,:);  % 获取第 i 个样本的标签向量
     for j = 1 : 20015
-        d =  LAll(j,:);
-        e = length(intersect(find(c==1),find(d==1)));
-        m = length(find(d==1));
-        n = length(find(c==1));
-        S(i,j) = (e/m + e/n)/2;
+        d = LAll(j,:);  % 获取第 j 个样本的标签向量
+
+        % 计算样本 i 和样本 j 之间的交集标签数
+        e = length(intersect(find(c==1), find(d==1)));  % 交集标签数
+
+        % 计算样本 j 和样本 i 各自的标签数
+        m = length(find(d==1));  % 样本 j 的标签数
+        n = length(find(c==1));  % 样本 i 的标签数
+
+        % 计算相似度，公式为 (交集标签数 / 样本 j 标签数 + 交集标签数 / 样本 i 标签数) / 2
+        S(i,j) = (e/m + e/n) / 2;
     end
 end
+
+% 将计算出的相似度矩阵保存到文件中
 save('S20015.mat','S');
-    

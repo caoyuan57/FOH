@@ -1,230 +1,153 @@
 function [recall, precision, info] = vl_pr(labels, scores, varargin)
-%VL_PR   Precision-recall curve.
-%   [RECALL, PRECISION] = VL_PR(LABELS, SCORES) computes the
-%   precision-recall (PR) curve. LABELS are the ground truth labels,
-%   greater than zero for a positive sample and smaller than zero for
-%   a negative one. SCORES are the scores of the samples obtained from
-%   a classifier, where larger scores should correspond to positive
-%   samples.
+%VL_PR   精度-召回曲线（Precision-Recall Curve）。
+%   [RECALL, PRECISION] = VL_PR(LABELS, SCORES) 计算精度-召回曲线（PR曲线）。LABELS 是 ground truth 标签，
+%   大于零表示正样本，小于零表示负样本。SCORES 是样本的得分，得分越大应当对应正样本。
 %
-%   Samples are ranked by decreasing scores, starting from rank 1.
-%   PRECISION(K) and RECALL(K) are the precision and recall when
-%   samples of rank smaller or equal to K-1 are predicted to be
-%   positive and the remaining to be negative. So for example
-%   PRECISION(3) is the percentage of positive samples among the two
-%   samples with largest score. PRECISION(1) is the precision when no
-%   samples are predicted to be positive and is conventionally set to
-%   the value 1.
-%
-%   Set to zero the labels of samples that should be ignored in the
-%   evaluation. Set to -INF the scores of samples which are not
-%   retrieved. If there are samples with -INF score, then the PR curve
-%   may have maximum recall smaller than 1, unless the INCLUDEINF
-%   option is used (see below). The options NUMNEGATIVES and
-%   NUMPOSITIVES can be used to add additional surrogate samples with
-%   -INF score (see below).
-%
-%   [RECALL, PRECISION, INFO] = VL_PR(...) returns an additional
-%   structure INFO with the following fields:
-%
+%   样本按得分降序排列，从排名1开始。PRECISION(K) 和 RECALL(K) 是当排名小于或等于 K-1 时，
+%   样本被预测为正样本，其余为负样本的精度和召回率。
+%   例如，PRECISION(3) 是前两名样本中正样本的百分比，PRECISION(1) 是当没有正样本时的精度，默认值为 1。
+
+%   设置为零的标签表示需要在评估中忽略的样本。对于没有检索到的样本，SCORES 设置为 -INF。
+%   如果有样本得分为 -INF，则 PR 曲线的最大召回率可能小于 1，除非使用 INCLUDEINF 选项（详见下文）。
+%   NUMNEGATIVES 和 NUMPOSITIVES 可用于添加额外的伪样本，并将其得分设置为 -INF。
+
+%   [RECALL, PRECISION, INFO] = VL_PR(...) 返回一个额外的结构体 INFO，其中包含以下字段：
+
 %   info.auc::
-%     The area under the precision-recall curve. If the INTERPOLATE
-%     option is set to FALSE, then trapezoidal interpolation is used
-%     to integrate the PR curve. If the INTERPOLATE option is set to
-%     TRUE, then the curve is piecewise constant and no other
-%     approximation is introduced in the calculation of the area. In
-%     the latter case, INFO.AUC is the same as INFO.AP.
-%
+%     PR 曲线下的面积（AUC）。如果 INTERPOLATE 选项设置为 FALSE，则使用梯形插值法计算 AUC。
+%     如果 INTERPOLATE 选项设置为 TRUE，则曲线为分段常数，不进行其他近似处理，INFO.AUC 与 INFO.AP 相同。
+
 %   info.ap::
-%     Average precision as defined by TREC. This is the average of the
-%     precision observed each time a new positive sample is
-%     recalled. In this calculation, any sample with -INF score
-%     (unless INCLUDEINF is used) and any additional positive induced
-%     by NUMPOSITIVES has precision equal to zero. If the INTERPOLATE
-%     option is set to true, the AP is computed from the interpolated
-%     precision and the result is the same as INFO.AUC. Note that AP
-%     as defined by TREC normally does not use interpolation [1].
-%
+%     平均精度（Average Precision, AP），计算时每次召回一个新的正样本时的精度的平均值。
+
 %   info.ap_interp_11::
-%     11-points interpolated average precision as defined by TREC.
-%     This is the average of the maximum precision for recall levels
-%     greater than 0.0, 0.1, 0.2, ..., 1.0. This measure was used in
-%     the PASCAL VOC challenge up to the 2008 edition.
-%
+%     11 点插值的平均精度（平均精度曲线），这是 PASCAL VOC 挑战赛直到 2008 年的标准。
+
 %   info.auc_pa08::
-%     Deprecated. It is the same of INFO.AP_INTERP_11.
-%
-%   VL_PR(...) with no output arguments plots the PR curve in the
-%   current axis.
-%
-%   VL_PR() accepts the following options:
-%
+%     已弃用，与 INFO.AP_INTERP_11 相同。
+
+%   VL_PR() 如果没有输出参数，将会绘制 PR 曲线。
+
+%   VL_PR() 支持以下选项：
+
 %   Interpolate:: false
-%     If set to true, use interpolated precision. The interpolated
-%     precision is defined as the maximum precision for a given recall
-%     level and onwards. Here it is implemented as the cumulative
-%     maximum from low to high scores of the precision.
-%
+%     如果设置为 true，使用插值的精度。插值的精度定义为从给定召回率及以后最大的精度。
+
 %   NumPositives:: []
 %   NumNegatives:: []
-%     If set to a number, pretend that LABELS contains this may
-%     positive/negative labels. NUMPOSITIVES/NUMNEGATIVES cannot be
-%     smaller than the actual number of positive/negative entries in
-%     LABELS. The additional positive/negative labels are appended to
-%     the end of the sequence, as if they had -INF scores (not
-%     retrieved). This is useful to evaluate large retrieval systems
-%     for which one stores only a handful of top results for efficiency
-%     reasons.
-%
+%     如果设置为一个数字，假设 LABELS 中包含此数量的正/负标签。附加的正负标签会追加到序列的末尾，得分为 -INF（未检索）。
+%     这对大型检索系统有用，仅存储少数前几名结果以提高效率。
+
 %   IncludeInf:: false
-%     If set to true, data with -INF score SCORES is included in the
-%     evaluation and the maximum recall is 1 even if -INF scores are
-%     present. This option does not include any additional positive or
-%     negative data introduced by specifying NUMPOSITIVES and
-%     NUMNEGATIVES.
-%
+%     如果设置为 true，则包含得分为 -INF 的样本，最大召回率为 1，即使存在 -INF 得分的样本。
+
 %   Stable:: false
-%     If set to true, RECALL and PRECISION are returned in the same order
-%     of LABELS and SCORES rather than being sorted by decreasing
-%     score (increasing recall). Samples with -INF scores are assigned
-%     RECALL and PRECISION equal to NaN.
-%
+%     如果设置为 true，则返回的 RECALL 和 PRECISION 将按照 LABELS 和 SCORES 中的顺序返回，而不是按得分降序排序。
+
 %   NormalizePrior:: []
-%     If set to a scalar, reweights positive and negative labels so
-%     that the fraction of positive ones is equal to the specified
-%     value. This computes the normalised PR curves of [2]
-%
-%   About the PR curve::
-%     This section uses the same symbols used in the documentation of
-%     the VL_ROC() function. In addition to those quantities, define:
-%
-%       PRECISION(S) = TP(S) / (TP(S) + FP(S))
-%       RECALL(S) = TPR(S) = TP(S) / P
-%
-%     The precision is the fraction of positive predictions which are
-%     correct, and the recall is the fraction of positive labels that
-%     have been correctly classified (recalled). Notice that the recall
-%     is also equal to the true positive rate for the ROC curve (see
-%     VL_ROC()).
-%
-%   REFERENCES:
-%   [1] C. D. Manning, P. Raghavan, and H. Schutze. An Introduction to
-%   Information Retrieval. Cambridge University Press, 2008.
-%   [2] D. Hoiem, Y. Chodpathumwan, and Q. Dai. Diagnosing error in
-%   object detectors. In Proc. ECCV, 2012.
-%
-%   See also VL_ROC(), VL_HELP().
+%     如果设置为一个标量，重新加权正负标签，使得正标签的比例等于指定值。
 
-% Author: Andrea Vedaldi
+%   参见：VL_ROC(), VL_HELP()。
 
-% Copyright (C) 2007-12 Andrea Vedaldi and Brian Fulkerson.
-% All rights reserved.
-%
-% This file is part of the VLFeat library and is made available under
-% the terms of the BSD license (see the COPYING file).
+%   作者：Andrea Vedaldi
 
-% TP and FP are the vectors of true positive and false positive label
-% counts for decreasing scores, P and N are the total number of
-% positive and negative labels. Note that if certain options are used
-% some labels may actually not be stored explicitly by LABELS, so P+N
-% can be larger than the number of element of LABELS.
-
+% 计算真正例（TP）和假正例（FP）的数量
 [tp, fp, p, n, perm, varargin] = vl_tpfp(labels, scores, varargin{:}) ;
-opts.stable = false ;
-opts.interpolate = false ;
-opts.normalizePrior = [] ;
-opts = vl_argparse(opts,varargin) ;
+opts.stable = false ;   % 默认不使用稳定模式
+opts.interpolate = false ;  % 默认不使用插值
+opts.normalizePrior = [] ;  % 默认不进行正负标签的加权
+opts = vl_argparse(opts,varargin) ;  % 解析传入的选项
 
-% compute precision and recall
-small = 1e-10 ;
-recall = tp / max(p, small) ;
+% 计算精度和召回率
+small = 1e-10 ;  % 防止除以零的极小值
+recall = tp / max(p, small) ;  % 计算召回率
 if isempty(opts.normalizePrior)
-  precision = max(tp, small) ./ max(tp + fp, small) ;
+  precision = max(tp, small) ./ max(tp + fp, small) ;  % 计算精度
 else
+  % 使用 normalizePrior 重新加权精度
   a = opts.normalizePrior ;
-  precision = max(tp * a/max(p,small), small) ./ ...
-      max(tp * a/max(p,small) + fp * (1-a)/max(n,small), small) ;
+  precision = max(tp * a/max(p, small), small) ./ ...
+      max(tp * a/max(p, small) + fp * (1 - a)/max(n, small), small) ;
 end
 
-% interpolate precision if needed
+% 如果需要插值，进行插值处理
 if opts.interpolate
-  precision = fliplr(vl_cummax(fliplr(precision))) ;
+  precision = fliplr(vl_cummax(fliplr(precision))) ;  % 反向计算累计最大值
 end
 
 % --------------------------------------------------------------------
-%                                                      Additional info
+%                                                      计算附加信息
 % --------------------------------------------------------------------
 
 if nargout > 2 || nargout == 0
-
-  % area under the curve using trapezoid interpolation
+  % 使用梯形插值法计算 PR 曲线下的面积（AUC）
   if ~opts.interpolate
     info.auc = 0.5 * sum((precision(1:end-1) + precision(2:end)) .* diff(recall)) ;
   end
 
-  % average precision (for each recalled positive sample)
+  % 计算平均精度（AP）
   sel = find(diff(recall)) + 1 ;
   info.ap = sum(precision(sel)) / p ;
   if opts.interpolate
-    info.auc = info.ap ;
+    info.auc = info.ap ;  % 如果插值，AUC 和 AP 相等
   end
 
-  % TREC 11 points average interpolated precision
+  % 计算 11 点插值的平均精度
   info.ap_interp_11 = 0.0 ;
-  for rc = linspace(0,1,11)
+  for rc = linspace(0, 1, 11)
     pr = max([0, precision(recall >= rc)]) ;
     info.ap_interp_11 = info.ap_interp_11 + pr / 11 ;
   end
 
-  % legacy definition
+  % 兼容定义
   info.auc_pa08 = info.ap_interp_11 ;
 end
 
 % --------------------------------------------------------------------
-%                                                                 Plot
+%                                                                 绘图
 % --------------------------------------------------------------------
 
 if nargout == 0
   cla ; hold on ;
-  plot(recall,precision,'linewidth',2) ;
+  plot(recall, precision, 'linewidth', 2) ;  % 绘制 PR 曲线
   if isempty(opts.normalizePrior)
-    randomPrecision = p / (p + n) ;
+    randomPrecision = p / (p + n) ;  % 计算随机精度
   else
-    randomPrecision = opts.normalizePrior ;
+    randomPrecision = opts.normalizePrior ;  % 使用指定的精度
   end
-  spline([0 1], [1 1] * randomPrecision, 'r--', 'linewidth', 2) ;
+  spline([0 1], [1 1] * randomPrecision, 'r--', 'linewidth', 2) ;  % 绘制随机精度线
   axis square ; grid on ;
   xlim([0 1]) ; xlabel('recall') ;
   ylim([0 1]) ; ylabel('precision') ;
   title(sprintf('PR (AUC: %.2f%%, AP: %.2f%%, AP11: %.2f%%)', ...
                 info.auc * 100, ...
                 info.ap * 100, ...
-                info.ap_interp_11 * 100)) ;
+                info.ap_interp_11 * 100)) ;  % 显示 AUC 和 AP 等信息
   if opts.interpolate
     legend('PR interp.', 'PR rand.', 'Location', 'SouthEast') ;
   else
     legend('PR', 'PR rand.', 'Location', 'SouthEast') ;
   end
-  clear recall precision info ;
+  clear recall precision info ;  % 清除变量
 end
 
 % --------------------------------------------------------------------
-%                                                        Stable output
+%                                                       稳定输出
 % --------------------------------------------------------------------
 
 if opts.stable
-  precision(1) = [] ;
+  precision(1) = [] ;  % 移除第一项
   recall(1) = [] ;
   precision_ = precision ;
   recall_ = recall ;
   precision = NaN(size(precision)) ;
   recall = NaN(size(recall)) ;
-  precision(perm) = precision_ ;
+  precision(perm) = precision_ ;  % 恢复原来的排序
   recall(perm) = recall_ ;
 end
 
 % --------------------------------------------------------------------
-function h = spline(x,y,spec,varargin)
-% --------------------------------------------------------------------
+function h = spline(x, y, spec, varargin)
+% 处理线条样式的辅助函数
 prop = vl_linespec2prop(spec) ;
-h = line(x,y,prop{:},varargin{:})
+h = line(x, y, prop{:}, varargin{:}) ;

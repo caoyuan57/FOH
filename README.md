@@ -21,4 +21,4 @@ password：jz4j
 - For multi lable online hashing experiments:run FOHmultilabel.m.
 - The relevant documents have been annotated.
 ## Contact us
-If you have any questions, please send email to Yuan Cao (email address: caoyuan57@163.com).
+If you have any questions, please send email to Yuan Cao (email address: caoyuan57@163.com). 
